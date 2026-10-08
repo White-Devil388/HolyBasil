@@ -32,7 +32,7 @@ app.use(
         return callback(null, true);
       }
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
         return callback(null, true);
       }
 
@@ -84,6 +84,7 @@ app.use((err, req, res, next) => {
 
 const port = process.env.PORT || 5000;
 
+// Remove app.listen from global scope to avoid Vercel conflicts
 const startServer = async () => {
   try {
     if (!process.env.MONGODB_URI) {
@@ -91,41 +92,23 @@ const startServer = async () => {
     }
 
     await mongoose.connect(process.env.MONGODB_URI);
-
     console.log("MongoDB connected successfully");
 
-    app.listen(port, () => {
-      console.log(`API running on http://localhost:${port}`);
-    });
+    // Only listen if not running in Vercel
+    if (process.env.VERCEL !== "1") {
+      app.listen(port, () => {
+        console.log(`API running on http://localhost:${port}`);
+      });
+    }
   } catch (err) {
     console.error("MongoDB connection failed:", err.message);
-    console.error("Server was not started.");
-    process.exit(1);
+    if (process.env.VERCEL !== "1") {
+      process.exit(1);
+    }
   }
 };
 
 startServer();
 
-// if (process.env.MONGODB_URI) {
-//   mongoose
-//     .connect(process.env.MONGODB_URI)
-//     .then(() => {
-//       console.log("MongoDB connected successfully");
-
-//       app.listen(port, () =>
-//         console.log(`API running on http://localhost:${port}`),
-//       );
-//     })
-//     .catch((err) => {
-//       console.error("MongoDB connection failed:", err.message);
-//       app.listen(port, () =>
-//         console.log(`API running without DB on http://localhost:${port}`),
-//       );
-//     });
-// } else {
-//   console.log("MONGODB_URI is not defined in .env");
-
-//   app.listen(port, () =>
-//     console.log(`API running without DB on http://localhost:${port}`),
-//   );
-// }
+// Export the Express API for Vercel
+export default app;
